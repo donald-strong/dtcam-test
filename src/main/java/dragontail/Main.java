@@ -54,7 +54,7 @@ public class Main {
     }
     
     public static void main(String[] args) throws IOException {
-        String propertyName = args.length > 0 ? args[0] : "video0.properties";
+        String propertyName = args.length > 0 ? args[0] : "camera.properties";
         Properties props = new Properties();
         props.load(Main.class.getClassLoader().getResourceAsStream(propertyName));
         if (props.isEmpty()) {
