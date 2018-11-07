@@ -60,17 +60,17 @@ public class DtCamera {
     public void open() throws IOException {
         int count = 0;
         while (count++ < 10) {
-            if (deviceName == AUTO_FIND_VIDEO) {
+//            if (deviceName == AUTO_FIND_VIDEO) {
                 System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
                 if (dtcam.DTCam_Start(width, height, fps) != 0) {
                     throw new IOException("Could not find camera");
                 }
-            } else {
-                System.out.format("open(%s, %d, %d, %d)\n",deviceName ,width, height, fps);
-                if (dtcam.DTCam_Start_Video(deviceName, width, height, fps) != 0) {
-                    throw new IOException("Could not open camera: " + deviceName);
-                }
-            }
+//            } else {
+//                System.out.format("open(%s, %d, %d, %d)\n",deviceName ,width, height, fps);
+//                if (dtcam.DTCam_Start_Video(deviceName, width, height, fps) != 0) {
+//                    throw new IOException("Could not open camera: " + deviceName);
+//                }
+//            }
             if (dtcam.DTCam_State() == 0) {
                 return;
             }
