@@ -7,15 +7,18 @@ import java.util.Properties;
 
 import javax.imageio.ImageIO;
 
+import dragontail.DtCamera.AutoFocusROIModeAndWindowSize;
+import efcam.DtCamExtend.CamAfMode;
+
 public class Main {
-    
+
     DtCamera camera = new DtCamera();
     File outDir = null;
-    
+
     public void init(Properties props) {
         camera.init(props);
     }
-    
+
     public void setOutDir(String dirName) throws IOException {
         outDir = new File(dirName);
         if (!outDir.exists()) {
@@ -24,27 +27,35 @@ public class Main {
             throw new IOException("Not a directory: " + outDir.getAbsolutePath());
         }
     }
-    
+
     public File getOutDir() {
         return outDir;
     }
-    
-    public void run() {
-        int count = 0;
+
+    public static void sleep(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            // Do nothing
+        }
+    }
+
+    void reportImage(BufferedImage image, String filename) throws IOException {
+        if (image != null) {
+            File file = new File(getOutDir(), filename + ".bmp");
+            System.out.println("\t" + file.getAbsolutePath());
+            ImageIO.write(image, "bmp", file);
+        } else {
+            System.out.println("\t Image is null");
+        }
+    }
+
+    public void readLoop() {
         try {
             camera.open();
-            System.out.println("Status: " + camera.getDtCam().DTCam_State());
-            while (count <= 200) {
-                BufferedImage image = camera.readBufferedImage();
-                System.out.print(image == null ? 'x' : '.');
-                if ((++count % 50) == 0) {
-                    File file = new File(getOutDir(), "Image_" + count + ".jpg");
-                    System.out.println(" " + file.getAbsolutePath());
-                    ImageIO.write(image, "jpg", file);
-                } else {
-                    System.out.flush();
-                }
-            }
+            System.out.println("Is open: " + camera.isOpen());
+            BufferedImage image = camera.read();
+            reportImage(image, "Focus_100");
         } catch (IOException e) {
             e.printStackTrace();
             return;
@@ -53,6 +64,82 @@ public class Main {
         }
     }
     
+    public void reportFocus() {
+        AutoFocusROIModeAndWindowSize data = camera.getAutoFocusROIModeAndWindowSize();
+        System.out.println("Focus ROI mode: " + data.getRoiMode());
+        System.out.println("Focus length: " + data.getWinSize());
+    }
+    
+    public void setManualFocus(int focus) throws IOException {
+        System.out.print("Set manual focus: " + focus);                
+        if (camera.setManualFocus(focus)) {
+            System.out.println(" - success");                
+        } else {
+            System.out.println(" - failure");                
+        }
+        skipImages(5);
+        //reportFocus();
+        BufferedImage image = camera.read();
+        reportImage(image, "Focus_AFDisabled_"+focus);
+    }
+    
+    void skipImages(int count) throws IOException {
+        while (count-- > 0) {
+            camera.readRawBytes();
+        }
+    }
+    
+//    int [] trans210 = new int[] {2, 1, 0};
+//    
+//    public BufferedImage read(int [] trans) throws IOException {
+//        byte [] source = camera.readRawBytes();
+//        if (source != null) {
+//            byte [] target = camera.rearange(source, trans);
+//            return camera.readBufferedImage(target);
+//        }
+//        return null;
+//    }
+
+    public void manualFocus() {
+        try {
+            camera.open();
+            
+            System.out.println("Set to default");
+            camera.setToDefault();
+            reportFocus();
+            setManualFocus(0);
+            setManualFocus(40);
+            setManualFocus(100);
+            setManualFocus(255);
+
+            System.out.println("Set to default");
+            camera.setToDefault();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        } finally {
+            camera.close();
+        }
+    }
+
+    public void colourImage() {
+        try {
+            camera.open();
+            skipImages(10);
+
+            reportImage(camera.read(), "ImageColour");
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        } finally {
+            camera.close();
+        }
+    }
+
+    public void run() {
+        colourImage();
+    }
+
     public static void main(String[] args) throws IOException {
         String propertyName = args.length > 0 ? args[0] : "camera.properties";
         Properties props = new Properties();
@@ -63,6 +150,8 @@ public class Main {
         Main main = new Main();
         if (args.length > 1) {
             main.setOutDir(args[1]);
+        } else {
+            main.setOutDir("images");
         }
         main.init(props);
         main.run();

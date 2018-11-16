@@ -1,8 +1,6 @@
 package dragontail;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -13,6 +11,9 @@ import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 
 import efcam.DtCam;
+import efcam.DtCamExtend;
+import efcam.DtCamExtend.CamAfMode;
+import efcam.DtCamExtend.CamROIAfMode;
 
 public class DtCamera {
     public static final String AUTO_FIND_VIDEO = "AUTO";
@@ -20,8 +21,12 @@ public class DtCamera {
     public static final int DEFAULT_HEIGHT = 2160;
     public static final int DEFAULT_CHANNELS = 3;
     public static final int DEFAULT_FPS = 15;
+    public static final int [] TRANS_210 = new int[] {2, 1, 0};
+
+
 
     private final DtCam dtcam;
+    private final DtCamExtend dtcamExtra;
     private String deviceName;
     private int width;
     private int height;
@@ -29,7 +34,6 @@ public class DtCamera {
     private int fps;
     
     public DtCamera() {
-        this.deviceName = AUTO_FIND_VIDEO;
         this.width = DEFAULT_WIDTH;
         this.height = DEFAULT_HEIGHT;
         this.channels = DEFAULT_CHANNELS;
@@ -37,20 +41,15 @@ public class DtCamera {
 
         NativeLibrary.getInstance("udev");
         dtcam = Native.load("DTCam", DtCam.class);
+        dtcamExtra = Native.load("DTCam", DtCamExtend.class);
     }
     
-    public DtCamera(String deviceName) {
-        this();
-        this.deviceName = deviceName;
-    }
-
     int getInt(Properties props, String name, int defaultValue) {
         String value = props.getProperty(name);
         return (value == null) ? defaultValue : Integer.parseInt(value);
     }
 
     public void init(Properties props) {
-        this.deviceName = props.getProperty("deviceName", deviceName);
         this.width = getInt(props, "width", width);
         this.height = getInt(props, "height", height);
         this.channels = getInt(props, "channels", channels);
@@ -60,17 +59,10 @@ public class DtCamera {
     public void open() throws IOException {
         int count = 0;
         while (count++ < 10) {
-//            if (deviceName == AUTO_FIND_VIDEO) {
                 System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
                 if (dtcam.DTCam_Start(width, height, fps) != 0) {
                     throw new IOException("Could not find camera");
                 }
-//            } else {
-//                System.out.format("open(%s, %d, %d, %d)\n",deviceName ,width, height, fps);
-//                if (dtcam.DTCam_Start_Video(deviceName, width, height, fps) != 0) {
-//                    throw new IOException("Could not open camera: " + deviceName);
-//                }
-//            }
             if (dtcam.DTCam_State() == 0) {
                 return;
             }
@@ -88,31 +80,100 @@ public class DtCamera {
         dtcam.DTCam_Stop();
     }
     
-    public DtCam getDtCam() {
-        return dtcam;
+    public boolean isOpen() {
+        return dtcam.DTCam_State() == 0;
+    }
+
+    public boolean setAutoFocusMode(CamAfMode mode) {
+        int result = dtcamExtra.setAutoFocusMode(mode.value());
+        return result > 0;
+    }
+
+    public static class AutoFocusROIModeAndWindowSize {
+        private final CamROIAfMode roiMode;
+        private final int winSize;
+        AutoFocusROIModeAndWindowSize(CamROIAfMode roiMode, int winSize) {
+            this.roiMode = roiMode;
+            this.winSize = winSize;
+        }
+        public CamROIAfMode getRoiMode() {
+            return roiMode;
+        }
+        public int getWinSize() {
+            return winSize;
+        }
     }
     
-    public BufferedImage readBufferedImage() throws IOException {
-        PointerByReference pref = new PointerByReference();
-        IntByReference iref = new IntByReference();
-        if (dtcam.DTCam_Grab(pref, iref) == 0) {
-            Pointer p = pref.getValue();
-            byte[] source = p.getByteArray(0, iref.getValue());
-            
-            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-            image.getRaster().setDataElements(0, 0, width, height, source);
-            return image;
+    public AutoFocusROIModeAndWindowSize getAutoFocusROIModeAndWindowSize() {
+        IntByReference roiMode = new IntByReference(); 
+        IntByReference winSize = new IntByReference();
+        if (dtcamExtra.getAutoFocusROIModeAndWindowSize(roiMode, winSize) == 1) {
+            CamROIAfMode mode = CamROIAfMode.toValue(roiMode.getValue());
+            return new AutoFocusROIModeAndWindowSize(mode, winSize.getValue());
+        } else {
+            return null;
+        }
+    }
+    
+    public boolean setRoiAutoFocus(CamROIAfMode see3camAfROIMode, int xCord, int yCord, int winSize)
+    {
+        int result = dtcamExtra.setROIAutoFoucs(see3camAfROIMode.value(), 
+                width, height, xCord, yCord, winSize);
+        return result > 0;
+    }
+    
+    public boolean setManualFocus(int focusLength) throws IOException
+    {
+        if (focusLength < 0 || focusLength > 255) {
+            throw new IOException("Focus length must be 0..255, not " + focusLength);
+        }
+        if (!setAutoFocusMode(CamAfMode.AfModeDisabled)) {
+            return false;
+        }
+        // Should perhaps be ... CamROIAfMode.AFDisabled.value()
+        //int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFCentered.value(), 0, 0, 0, 0, focusLength);
+        int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFDisabled.value(), 0, 0, 0, 0, focusLength);
+        //int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFManual.value(), 0, 0, 0, 0, focusLength);
+        return result > 0;
+    }
+    
+    public void setToDefault() {
+        dtcamExtra.setToDefault();
+    }
+
+    public BufferedImage read() throws IOException {
+        byte [] source = readRawBytes();
+        if (source != null) {
+            byte [] target = rearange(source, TRANS_210);
+            return readBufferedImage(target);
         }
         return null;
     }
     
-    byte [] getByteArray(BufferedImage image) throws IOException {
-        DataBuffer dataBuffer = image.getRaster().getDataBuffer();
-        byte[] data = ((DataBufferByte) dataBuffer).getData();
-        if(data.length != width*height*channels){
-            throw new IOException("Mismatching data sizes! " + "getByteArray: " + data.length + " " + 
-                        width*height*channels + " " + width + "x" + height + "x" + channels);
+    BufferedImage readBufferedImage(byte[] source) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
+        image.getRaster().setDataElements(0, 0, width, height, source);
+        return image;
+    }
+    
+    byte [] readRawBytes() throws IOException {
+        PointerByReference pref = new PointerByReference();
+        IntByReference iref = new IntByReference();
+        if (dtcam.DTCam_Grab(pref, iref) == 0) {
+            Pointer p = pref.getValue();
+            return p.getByteArray(0, iref.getValue());
         }
-        return data;
+        return null;
+    }
+
+    byte [] rearange(byte[] source, int [] trans) {
+        int len = source.length;
+        byte [] target = new byte[len];
+        for (int i=0; i<len; i+=3) {
+            target[i+0] = source[i+trans[0]];
+            target[i+1] = source[i+trans[1]];
+            target[i+2] = source[i+trans[2]];
+        }
+        return target;
     }
 }
