@@ -4,7 +4,7 @@ export CLASSES=target/classes
 export SOURCE=src/main/java
 export CLASSPATH=lib/jna-5.0.0.jar
 
-rm -r $CLASSES
+rm -rf $CLASSES
 mkdir -p $CLASSES
 
 cp -r src/main/resources/* $CLASSES

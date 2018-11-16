@@ -80,7 +80,8 @@ public class Loop {
                     failedToOpen = 0;
                     System.out.println("Camera connected...");
                     camera.setAutoFocusMode(CamAfMode.AfModeDisabled);
-                    camera.setRoiAutoFocus(CamROIAfMode.AFDisabled, 0, 0, 250);
+                    camera.setRoiAutoFocus(CamROIAfMode.AFManual, 0, 0, 250);
+                    //camera.setRoiAutoFocus(CamROIAfMode.AFDisabled, 0, 0, 250);
                     sleep(2000);
                     int count = 0;
                     int retry = 0;
