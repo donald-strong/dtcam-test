@@ -1,4 +1,4 @@
-package efcam;
+package efcom;
 
 import com.sun.jna.Library;
 import com.sun.jna.ptr.IntByReference;
@@ -19,6 +19,10 @@ public interface DtCam extends Library {
     int DTCam_SetExposure(int exposure);
 //  int DTCam_GetExposure(int *exposure);
     int DTCam_GetExposure(IntByReference exposure);
+//    int DTCam_SetFocus(int focus);
+    int DTCam_SetFocus(int focus);
+//    int DTCam_GetFocus(int *focus);
+    int DTCam_GetFocus(IntByReference focus);
 //  int DTCam_Stop();
     int DTCam_Stop();
 }

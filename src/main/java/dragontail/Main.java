@@ -8,7 +8,7 @@ import java.util.Properties;
 import javax.imageio.ImageIO;
 
 import dragontail.DtCamera.AutoFocusROIModeAndWindowSize;
-import efcam.DtCamExtend.CamAfMode;
+import efcom.DtCamExtend.CamAfMode;
 
 public class Main {
 
@@ -70,6 +70,10 @@ public class Main {
         System.out.println("Focus length: " + data.getWinSize());
     }
     
+    public int getManualFocus() throws IOException {
+        return camera.getManualFocus();
+    }
+    
     public void setManualFocus(int focus) throws IOException {
         System.out.print("Set manual focus: " + focus);                
         if (camera.setManualFocus(focus)) {
@@ -77,10 +81,6 @@ public class Main {
         } else {
             System.out.println(" - failure");                
         }
-        skipImages(5);
-        //reportFocus();
-        BufferedImage image = camera.read();
-        reportImage(image, "Focus_AFDisabled_"+focus);
     }
     
     void skipImages(int count) throws IOException {
@@ -104,13 +104,14 @@ public class Main {
         try {
             camera.open();
             
-            System.out.println("Set to default");
-            camera.setToDefault();
-            reportFocus();
-            setManualFocus(0);
-            setManualFocus(40);
-            setManualFocus(100);
-            setManualFocus(255);
+            setManualFocus(35);
+            int focus = getManualFocus();
+            System.out.println("Focus is: " + focus);
+            for (int i=0; i<4; i++) {
+                skipImages(50);
+                BufferedImage image = camera.read();
+                reportImage(image, "ImageFocus_" + i);
+            }
 
             System.out.println("Set to default");
             camera.setToDefault();
@@ -137,7 +138,8 @@ public class Main {
     }
 
     public void run() {
-        colourImage();
+        manualFocus();
+        //colourImage();
     }
 
     public static void main(String[] args) throws IOException {

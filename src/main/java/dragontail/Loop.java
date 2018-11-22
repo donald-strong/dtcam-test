@@ -7,8 +7,8 @@ import java.util.Properties;
 
 import javax.imageio.ImageIO;
 
-import efcam.DtCamExtend.CamAfMode;
-import efcam.DtCamExtend.CamROIAfMode;
+import efcom.DtCamExtend.CamAfMode;
+import efcom.DtCamExtend.CamROIAfMode;
 
 public class Loop {
 

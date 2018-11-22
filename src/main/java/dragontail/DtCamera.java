@@ -10,10 +10,10 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 
-import efcam.DtCam;
-import efcam.DtCamExtend;
-import efcam.DtCamExtend.CamAfMode;
-import efcam.DtCamExtend.CamROIAfMode;
+import efcom.DtCam;
+import efcom.DtCamExtend;
+import efcom.DtCamExtend.CamAfMode;
+import efcom.DtCamExtend.CamROIAfMode;
 
 public class DtCamera {
     public static final String AUTO_FIND_VIDEO = "AUTO";
@@ -130,11 +130,18 @@ public class DtCamera {
         if (!setAutoFocusMode(CamAfMode.AfModeDisabled)) {
             return false;
         }
-        // Should perhaps be ... CamROIAfMode.AFDisabled.value()
-        //int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFCentered.value(), 0, 0, 0, 0, focusLength);
-        int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFDisabled.value(), 0, 0, 0, 0, focusLength);
-        //int result = dtcamExtra.setROIAutoFoucs(CamROIAfMode.AFManual.value(), 0, 0, 0, 0, focusLength);
-        return result > 0;
+        int result = dtcam.DTCam_SetFocus(focusLength);
+        return result != 0;
+    }
+    
+    public int getManualFocus() throws IOException {
+        IntByReference focusLength = new IntByReference(); 
+        int result = dtcam.DTCam_GetFocus(focusLength);
+        if (result > 0) {
+            return focusLength.getValue();
+        } else {
+            throw new IOException("Could not read focus setting from camera");
+        }
     }
     
     public void setToDefault() {

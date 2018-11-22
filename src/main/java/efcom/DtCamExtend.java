@@ -1,4 +1,4 @@
-package efcam;
+package efcom;
 
 import com.sun.jna.Library;
 import com.sun.jna.ptr.IntByReference;
