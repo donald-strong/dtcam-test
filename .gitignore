@@ -8,3 +8,6 @@
 /target/
 *.jpg
 /bin/
+/images/
+/dep/libDTCam.so
+
