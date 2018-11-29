@@ -21,9 +21,8 @@ public class DtCamera {
     public static final int DEFAULT_HEIGHT = 2160;
     public static final int DEFAULT_CHANNELS = 3;
     public static final int DEFAULT_FPS = 15;
+    public static final int UNKNOWN = -666;
     public static final int [] TRANS_210 = new int[] {2, 1, 0};
-
-
 
     private final DtCam dtcam;
     private final DtCamExtend dtcamExtra;
@@ -56,23 +55,16 @@ public class DtCamera {
         this.fps = getInt(props, "fps", fps);
     }
 
-    public void open() throws IOException {
-        int count = 0;
-        while (count++ < 10) {
-                System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
-                if (dtcam.DTCam_Start(width, height, fps) != 0) {
-                    throw new IOException("Could not find camera");
-                }
-            if (dtcam.DTCam_State() == 0) {
-                return;
-            }
-            try {
-                Thread.sleep(count*100);
-            } catch (InterruptedException e) {
-                // Do nothing
-            }
+    public boolean open() throws IOException {
+        System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
+        if (dtcam.DTCam_Start(width, height, fps) != 0) {
+            return false;
         }
-        throw new IOException("Could not open camera: " + deviceName);
+        // Read the first few images;
+        // * Set property doesn't work before reading images
+        // * DTCam_Grab returns corrupt data at the start.
+        skipImages(5);
+        return true;
     }
     
     public void close() {
@@ -121,26 +113,59 @@ public class DtCamera {
                 width, height, xCord, yCord, winSize);
         return result > 0;
     }
+
+    public boolean setExposure(int exposure) {
+        if (exposure < -1 || exposure > 10000) {
+            exposure = -1;
+        }
+        int result = dtcam.DTCam_SetExposure(exposure);
+        return result != -1;
+    }
+
+    public int getExposure() {
+        IntByReference exposure = new IntByReference();
+        int result = dtcam.DTCam_GetExposure(exposure);
+        if (result == 0) {
+            return exposure.getValue();
+        } else {
+            return UNKNOWN;
+        }
+    }
+
+    public boolean setWhiteBalance(int whiteBalance) {
+        if (whiteBalance != -1 && (1000 > whiteBalance || whiteBalance > 10000)) {
+            whiteBalance = -1;
+        }
+        int result = dtcam.DTCam_SetWhiteBalance(whiteBalance);
+        return result != -1;
+    }
+
+    public int getWhiteBalance() {
+        IntByReference whiteBalance = new IntByReference();
+        int result = dtcam.DTCam_GetWhiteBalance(whiteBalance);
+        if (result == 0) {
+            return whiteBalance.getValue();
+        } else {
+            return UNKNOWN;
+        }
+    }
     
     public boolean setManualFocus(int focusLength) throws IOException
     {
-        if (focusLength < 0 || focusLength > 255) {
-            throw new IOException("Focus length must be 0..255, not " + focusLength);
-        }
-        if (!setAutoFocusMode(CamAfMode.AfModeDisabled)) {
-            return false;
+        if (focusLength < -1 || focusLength > 255) {
+            focusLength = -1;
         }
         int result = dtcam.DTCam_SetFocus(focusLength);
-        return result != 0;
+        return result != -1;
     }
     
     public int getManualFocus() throws IOException {
         IntByReference focusLength = new IntByReference(); 
         int result = dtcam.DTCam_GetFocus(focusLength);
-        if (result > 0) {
+        if (result == 0) {
             return focusLength.getValue();
         } else {
-            throw new IOException("Could not read focus setting from camera");
+            return UNKNOWN;
         }
     }
     
@@ -151,7 +176,7 @@ public class DtCamera {
     public BufferedImage read() throws IOException {
         byte [] source = readRawBytes();
         if (source != null) {
-            byte [] target = rearange(source, TRANS_210);
+            byte [] target = rearrange(source, TRANS_210);
             return readBufferedImage(target);
         }
         return null;
@@ -173,7 +198,7 @@ public class DtCamera {
         return null;
     }
 
-    byte [] rearange(byte[] source, int [] trans) {
+    byte [] rearrange(byte[] source, int [] trans) {
         int len = source.length;
         byte [] target = new byte[len];
         for (int i=0; i<len; i+=3) {
@@ -182,5 +207,11 @@ public class DtCamera {
             target[i+2] = source[i+trans[2]];
         }
         return target;
+    }
+
+    public void skipImages(int count) throws IOException {
+        while (count-- > 0) {
+            readRawBytes();
+        }
     }
 }

@@ -83,31 +83,39 @@ public class Main {
         }
     }
     
+    public void setExposure(int exposure) throws IOException {
+        System.out.print("Set exposure: " + exposure);
+        if (camera.setExposure(exposure)) {
+            System.out.println(" - success");
+        } else {
+            System.out.println(" - failure");
+        }
+    }
+
+    public void setWhiteBalance(int whiteBalance) throws IOException {
+        System.out.print("Set White Balance: " + whiteBalance);
+        if (camera.setWhiteBalance(whiteBalance)) {
+            System.out.println(" - success");
+        } else {
+            System.out.println(" - failure");
+        }
+    }
+
     void skipImages(int count) throws IOException {
         while (count-- > 0) {
             camera.readRawBytes();
         }
     }
-    
-//    int [] trans210 = new int[] {2, 1, 0};
-//    
-//    public BufferedImage read(int [] trans) throws IOException {
-//        byte [] source = camera.readRawBytes();
-//        if (source != null) {
-//            byte [] target = camera.rearange(source, trans);
-//            return camera.readBufferedImage(target);
-//        }
-//        return null;
-//    }
 
     public void manualFocus() {
         try {
             camera.open();
-            
-            setManualFocus(35);
-            int focus = getManualFocus();
-            System.out.println("Focus is: " + focus);
-            for (int i=0; i<4; i++) {
+
+            for (int i=0; i<5; i++) {
+                setManualFocus(25 + i*5);
+                int focus = getManualFocus();
+                System.out.println("Focus is: " + focus);
+
                 skipImages(50);
                 BufferedImage image = camera.read();
                 reportImage(image, "ImageFocus_" + i);
@@ -123,10 +131,57 @@ public class Main {
         }
     }
 
+    public void manualExposure() {
+        try {
+            camera.open();
+
+            for (int i=0; i<4; i++) {
+                setExposure(300 + i*100);
+                int value = camera.getExposure();
+                System.out.println("Exposure is: " + value);
+
+                skipImages(50);
+                BufferedImage image = camera.read();
+                reportImage(image, "ImageExposure_" + i);
+            }
+
+            System.out.println("Set to default");
+            camera.setToDefault();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        } finally {
+            camera.close();
+        }
+    }
+
+    public void manualWhiteBalance() {
+        try {
+            camera.open();
+
+            for (int i=0; i<4; i++) {
+                setWhiteBalance(3000 + i*1000);
+                int value = camera.getWhiteBalance();
+                System.out.println("White balance is: " + value);
+
+                skipImages(50);
+                BufferedImage image = camera.read();
+                reportImage(image, "ImageWhiteBalance_" + i);
+            }
+
+            System.out.println("Set to default");
+            camera.setToDefault();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        } finally {
+            camera.close();
+        }
+    }
+
     public void colourImage() {
         try {
             camera.open();
-            skipImages(10);
 
             reportImage(camera.read(), "ImageColour");
         } catch (IOException e) {
@@ -138,6 +193,8 @@ public class Main {
     }
 
     public void run() {
+//        manualWhiteBalance();
+//        manualExposure();
         manualFocus();
         //colourImage();
     }
