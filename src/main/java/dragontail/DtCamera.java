@@ -49,6 +49,7 @@ public class DtCamera {
     }
 
     public void init(Properties props) {
+        this.deviceName = props.getProperty("deviceName");
         this.width = getInt(props, "width", width);
         this.height = getInt(props, "height", height);
         this.channels = getInt(props, "channels", channels);
@@ -56,9 +57,16 @@ public class DtCamera {
     }
 
     public boolean open() throws IOException {
-        System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
-        if (dtcam.DTCam_Start(width, height, fps) != 0) {
-            return false;
+        if (deviceName == null || AUTO_FIND_VIDEO.equals(deviceName)) {
+            System.out.format("open(AUTO, %d, %d, %d)\n" ,width, height, fps);
+            if (dtcam.DTCam_Start(width, height, fps) != 0) {
+                return false;
+            }
+        } else {
+            System.out.format("open(%s, %d, %d, %d)\n", deviceName,width, height, fps);
+            if (dtcam.DTCam_Start_Video(deviceName, width, height, fps) != 0) {
+                return false;
+            }
         }
         // Read the first few images;
         // * Set property doesn't work before reading images
